@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Day 1: Finding &amp; Validating a Problem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --page:#E3DED5;--bg:#F3F0EA;--card:#FBF9F5;--ink:#27251F;--muted:#6B665C;
+  --line:rgba(39,37,31,.13);--chip:#E7E2D8;--lime:#D6E86A;--limeink:#27251F;
+  --shadow:0 22px 44px -22px rgba(70,56,30,.30),0 2px 8px rgba(70,56,30,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#141311;--bg:#1E1D1A;--card:#2A2824;--ink:#F2EFE8;--muted:#A9A397;
+    --line:rgba(242,239,232,.15);--chip:#37342E;
+    --shadow:0 22px 44px -22px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.28);
+  }
+}
+:root[data-theme="dark"]{
+  --page:#141311;--bg:#1E1D1A;--card:#2A2824;--ink:#F2EFE8;--muted:#A9A397;
+  --line:rgba(242,239,232,.15);--chip:#37342E;
+  --shadow:0 22px 44px -22px rgba(0,0,0,.7),0 2px 8px rgba(0,0,0,.28);
+}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;margin:0;background:var(--page);color:var(--ink);overflow:hidden;
+  font-family:'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+h1,h2,h3{font-family:'Outfit','DM Sans',system-ui,sans-serif;margin:0;letter-spacing:-.02em}
+p{margin:0}
+button{font-family:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+/* app shell */
+#app{height:100%;display:flex;flex-direction:column}
+#stageWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:14px 16px 6px}
+#sizer{position:relative;flex:none}
+#stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;
+  background:var(--bg);border-radius:28px;box-shadow:var(--shadow);overflow:hidden}
+#notes{flex:none;max-height:0;overflow:auto;background:var(--card);margin:0 16px;border-radius:20px;
+  box-shadow:var(--shadow);padding:0 24px;transition:max-height .25s ease,padding .25s ease,margin .25s ease}
+body.notes-open #notes{max-height:34vh;padding:16px 24px 18px;margin-bottom:8px}
+#notes h2{font-size:18px;margin-bottom:8px}
+#notes p,#notes li{font-size:16px;line-height:1.5;margin:0 0 8px;max-width:78ch}
+#notes ul{margin:0 0 4px;padding-left:20px}
+#bar{flex:none;display:flex;align-items:center;gap:10px;padding:8px 16px 14px}
+.btn{width:44px;height:44px;border:0;border-radius:14px;background:var(--card);color:var(--ink);
+  box-shadow:var(--shadow);display:grid;place-items:center;cursor:pointer;flex:none}
+.btn:disabled{opacity:.4;cursor:default}
+.btn[aria-pressed="true"]{background:var(--lime);color:var(--limeink)}
+#count{font-size:16px;min-width:64px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted)}
+#track{flex:1;height:6px;border-radius:999px;background:var(--chip);overflow:hidden;min-width:40px}
+#fill{height:100%;width:0;background:var(--ink);border-radius:999px;transition:width .25s ease}
+.ico{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* slides */
+.slide{position:absolute;inset:0;padding:52px 80px 56px;display:flex;flex-direction:column;
+  opacity:0;visibility:hidden;transition:opacity .28s ease,visibility 0s .28s}
+.slide.active{opacity:1;visibility:visible;transition:opacity .28s ease}
+@media (prefers-reduced-motion:reduce){.slide,.slide.active,#fill,#notes{transition:none}}
+.notes{display:none}
+
+.crumb{display:flex;align-items:center;gap:14px;min-height:46px;margin-bottom:26px}
+.pill{font-size:18px;font-weight:500;line-height:1;padding:9px 18px;border-radius:999px;background:var(--chip)}
+.time{font-size:18px;color:var(--muted)}
+.timer{margin-left:auto;display:flex;align-items:center;gap:10px;background:var(--card);
+  padding:6px 8px 6px 22px;border-radius:999px;box-shadow:var(--shadow)}
+.timer .t{font:600 28px/1 'Outfit',sans-serif;font-variant-numeric:tabular-nums;min-width:82px}
+.timer button{border:0;border-radius:999px;padding:10px 18px;font-size:17px;font-weight:500;cursor:pointer;
+  background:var(--chip);color:var(--ink)}
+.timer .go{background:var(--lime);color:var(--limeink)}
+.timer.done .t{opacity:.55}
+
+.title{font-size:52px;line-height:1.07;font-weight:600;max-width:22em;text-wrap:balance}
+.lede{font-size:25px;line-height:1.4;color:var(--muted);margin-top:16px;max-width:38em;text-wrap:pretty}
+.card{background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:24px 30px}
+.card h3{font-size:26px;font-weight:600;line-height:1.15;margin-bottom:8px}
+.card p{font-size:21px;line-height:1.4;color:var(--muted)}
+.card.lime{background:var(--lime);color:var(--limeink);box-shadow:none}
+.card.lime p,.card.lime h3{color:var(--limeink)}
+.grid{display:grid;gap:22px}
+.chip{display:inline-flex;align-items:center;gap:10px;padding:9px 18px;border-radius:999px;background:var(--chip);font-size:20px}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.mt{margin-top:auto}
+.sm{font-size:19px;color:var(--muted)}
+
+/* 1 title */
+.t1{display:grid;grid-template-columns:1fr 290px;gap:56px;flex:1;min-height:0}
+.t1 h1{font-size:92px;line-height:1;font-weight:600;margin-top:6px}
+.t1 .lede{font-size:27px;margin-top:26px}
+.t1 .chips{margin-top:30px}
+.daycard{align-self:stretch;margin:6px 0 10px;border-radius:44px;background:var(--lime);color:var(--limeink);
+  padding:34px 32px;display:flex;flex-direction:column;justify-content:flex-end}
+.daycard .a{font:500 30px/1 'Outfit',sans-serif}
+.daycard .b{font:600 230px/.88 'Outfit',sans-serif;letter-spacing:-.04em;margin:8px 0 14px -6px}
+.daycard .c{font:500 34px/1 'Outfit',sans-serif}
+
+/* 2 statement */
+.statement{font-size:66px;line-height:1.08;font-weight:600;max-width:15.5em;margin-top:14px;text-wrap:balance}
+
+/* 3 plan */
+.tl{display:flex;flex-direction:column;gap:8px;margin-top:22px}
+.tlrow{display:grid;grid-template-columns:150px 340px 1fr;align-items:center;gap:20px;height:52px;
+  border-bottom:1px solid var(--line)}
+.tlrow:last-child{border-bottom:0}
+.tt{font-size:21px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tn{font:500 25px/1.1 'Outfit',sans-serif}
+.bar{height:18px;border-radius:999px;background:var(--chip);width:calc(var(--w)/30*100%);border:1px solid var(--line)}
+.bar.act{background:var(--lime);border-color:transparent}
+
+/* 4 objectives */
+.objs{display:grid;grid-template-columns:1fr 1fr;gap:0 56px;margin-top:20px}
+.obj{display:flex;gap:16px;align-items:flex-start;padding:15px 0;border-bottom:1px solid var(--line);font-size:23px;line-height:1.32}
+.obj .ico{margin-top:3px}
+.objs .card.lime{margin-top:14px;display:flex;gap:16px;align-items:flex-start;font-size:23px;line-height:1.3;padding:22px 26px;font-weight:500}
+
+/* 5 icebreaker */
+.three{grid-template-columns:repeat(3,1fr)}
+
+/* 6 */
+.two{grid-template-columns:1fr 1fr;gap:26px;margin-top:6px}
+.def{font-size:27px;line-height:1.38}
+.def b{font-family:'Outfit',sans-serif;font-weight:600}
+.quote{font:600 34px/1.18 'Outfit',sans-serif;letter-spacing:-.015em}
+
+/* 7 */
+.vs{display:flex;flex-direction:column;gap:14px;margin-top:20px}
+.vsh,.vsr{display:grid;grid-template-columns:190px 1fr 1.9fr;gap:28px;align-items:center}
+.vsh{color:var(--muted);font-size:18px;padding:0 30px}
+.vsr{padding:20px 30px}
+.vsr b{font:600 24px/1.15 'Outfit',sans-serif}
+.card p.weak{color:var(--muted);font-size:21px;display:flex;gap:10px;align-items:flex-start;line-height:1.35}
+.card p.good{color:var(--ink);font-size:22px;line-height:1.35}
+
+/* 8 flow */
+.flow{display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr 28px 1fr;align-items:stretch;margin-top:22px}
+.flow .arr{display:grid;place-items:center;color:var(--muted)}
+.flow .card{padding:22px 22px 24px}
+.flow .card h3{font-size:25px;margin-bottom:10px}
+.flow .card p{font-size:19px;line-height:1.38}
+
+/* 9 */
+.why{margin-top:18px}
+.whyr{display:grid;grid-template-columns:400px 1fr;gap:24px;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--line)}
+.whyr:last-child{border-bottom:0}
+.whyr b{font:600 27px/1.15 'Outfit',sans-serif}
+.whyr span{font-size:22px;line-height:1.35;color:var(--muted)}
+
+/* 10 */
+.split{display:grid;grid-template-columns:440px 1fr;gap:36px;margin-top:10px;align-items:stretch}
+.bigq{display:flex;flex-direction:column;justify-content:space-between}
+.qlist{display:flex;flex-direction:column}
+.qrow{display:flex;gap:16px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line);font-size:26px;font-weight:500}
+.qrow .ico{color:var(--muted)}
+
+/* 11 three questions */
+.q3{grid-template-columns:repeat(3,1fr);margin-top:26px}
+.q3 .card{display:flex;flex-direction:column;gap:14px;padding:28px 28px 26px}
+.q3 .ib{width:52px;height:52px;border-radius:16px;background:var(--chip);display:grid;place-items:center}
+.q3 h3{font-size:30px;margin:0}
+.q3 .chips{margin-top:auto}
+.q3 .chip{font-size:18px;padding:7px 14px;background:var(--chip)}
+
+/* 12 example */
+.ans{grid-template-columns:repeat(3,1fr);margin-top:24px}
+.ans .card{padding:24px 26px}
+.ans .k{font-size:18px;color:var(--muted);margin-bottom:8px}
+.ans .v{font:500 25px/1.3 'DM Sans',sans-serif;color:var(--ink)}
+
+/* 13 safari */
+.info{grid-template-columns:repeat(3,1fr);margin-top:28px}
+.info .card{display:flex;gap:18px;align-items:flex-start;padding:24px 26px}
+.info .card .ico{width:30px;height:30px;margin-top:2px}
+.info b{font:600 26px/1.15 'Outfit',sans-serif;display:block;margin-bottom:6px}
+.info span{font-size:20px;color:var(--muted);line-height:1.35}
+.rule{display:flex;gap:20px;align-items:center;margin-top:22px;padding:26px 32px}
+.rule .ico{width:34px;height:34px}
+.rule p{font-size:25px!important;line-height:1.35!important}
+
+/* 14 prompts */
+.pg{grid-template-columns:repeat(3,1fr);margin-top:22px;gap:18px}
+.pg .card{padding:22px 26px;font:500 23px/1.3 'DM Sans',sans-serif;min-height:100px;display:flex;align-items:center;border-radius:22px}
+
+/* 15 ladder */
+.ladder{display:grid;grid-template-columns:1fr 360px;gap:48px;margin-top:20px;flex:1;min-height:0}
+.lad{position:relative;padding-left:34px}
+.lad::before{content:"";position:absolute;left:7px;top:14px;bottom:30px;width:2px;background:var(--line)}
+.ls{position:relative;margin-bottom:14px}
+.ls::before{content:"";position:absolute;left:-34px;top:12px;width:16px;height:16px;border-radius:50%;background:var(--card);border:2px solid var(--muted)}
+.ls.last::before{background:var(--lime);border-color:var(--ink)}
+.ls .q{display:block;font-size:19px;color:var(--muted);margin-bottom:2px}
+.ls .a{font:600 28px/1.2 'Outfit',sans-serif}
+.ladder .card{align-self:start}
+.ladder .card .quote{font-size:29px}
+.ladder .card .sm{color:var(--limeink);opacity:.8;margin-bottom:12px}
+
+/* 16 examples */
+.ex{grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px}
+.ex .card{padding:18px 24px 20px;border-radius:22px}
+.ex .card h3{font-size:22px;margin-bottom:6px}
+.ex .card p{font-size:19px;line-height:1.35}
+.ex .card.lime{grid-column:span 2;display:flex;align-items:center;gap:16px}
+.ex .card.lime p{font-size:23px;line-height:1.35}
+
+/* 17 break */
+.brk{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+.brk .ib{width:84px;height:84px;border-radius:26px;background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center;margin-bottom:10px}
+.brk .ib .ico{width:40px;height:40px}
+.timer.big{margin:6px 0 0;background:none;box-shadow:none;padding:0;flex-direction:column;gap:18px}
+.timer.big .t{font-size:190px;line-height:1;letter-spacing:-.04em;min-width:0}
+.timer.big .btns{display:flex;gap:10px}
+.brk .lede{margin-top:6px}
+
+/* 18 canvas template */
+.cvs{display:flex;flex-direction:column;gap:14px;margin-top:22px}
+.cvr{display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:stretch}
+.cvr .card{display:flex;align-items:center;gap:14px;padding:18px 24px;font:600 24px/1.2 'Outfit',sans-serif}
+.cvr .card .ico{color:var(--muted)}
+.blank{border:2px dashed var(--line);border-radius:22px;min-height:76px}
+
+/* 19 completed */
+.done{display:grid;grid-template-columns:1.55fr 1fr;gap:26px;margin-top:20px}
+.done .rows{display:flex;flex-direction:column;gap:14px}
+.done .rows .card{padding:18px 26px 20px}
+.done .k{font-size:18px;color:var(--muted);margin-bottom:5px}
+.done .v{font-size:22px;line-height:1.35}
+.done .lime{padding:28px 30px;display:flex;flex-direction:column;gap:18px}
+.done .lime .k{color:var(--limeink);opacity:.75;margin-bottom:4px}
+.done .lime .v{font-size:23px}
+
+/* 20 5W */
+.w5{grid-template-columns:repeat(5,1fr);margin-top:22px;gap:16px}
+.w5 .card{padding:20px 20px 22px}
+.w5 h3{font-size:36px;margin-bottom:6px}
+.w5 p{font-size:19px;line-height:1.3}
+.cmp{display:flex;flex-direction:column;gap:12px;margin-top:20px}
+.cmp .card{display:flex;gap:16px;align-items:center;padding:16px 26px;font-size:22px;line-height:1.35;border-radius:20px}
+.cmp .card.weak{color:var(--muted);box-shadow:none;background:transparent;border:2px dashed var(--line)}
+.cmp .card.strong{color:var(--ink)}
+
+/* 21 traps */
+.trh,.trap{display:grid;grid-template-columns:1fr 40px 1fr;gap:18px;align-items:center}
+.trh{margin-top:16px;padding:0 28px;color:var(--muted);font-size:18px}
+.traps{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.trap{padding:14px 28px;border-radius:20px}
+.trap .s{font:500 24px/1.2 'Outfit',sans-serif;color:var(--muted)}
+.trap .arr{color:var(--muted)}
+.trap .k{font-size:23px;line-height:1.3;color:var(--ink);font-weight:500}
+
+/* 22 reflection */
+.wr{display:flex;flex-direction:column;margin-top:18px}
+.wrr{display:grid;grid-template-columns:420px 1fr;gap:28px;align-items:end;padding:10px 0 8px}
+.wrr b{font:600 25px/1.2 'Outfit',sans-serif;padding-bottom:4px}
+.wrr i{display:block;height:2px;background:var(--line);margin-bottom:12px}
+
+/* 23 formula */
+.formula{font:500 44px/1.55 'Outfit',sans-serif;letter-spacing:-.015em;margin-top:22px;max-width:25em}
+.formula em{font-style:normal;background:var(--lime);color:var(--limeink);padding:2px 16px 4px;border-radius:16px;white-space:nowrap}
+.exs{grid-template-columns:1fr 1fr;margin-top:30px}
+.exs .card{padding:22px 28px}
+.exs .card p{font-size:21px;color:var(--ink);line-height:1.4}
+.exs .k{font-size:18px;color:var(--muted);margin-bottom:6px;display:block}
+
+/* 24 share */
+.sh{grid-template-columns:1fr 1fr;gap:26px;margin-top:22px}
+.sh .card{padding:28px 32px}
+.sh .card p{font-size:22px;line-height:1.4;color:var(--ink);margin-bottom:14px}
+.sh .card p.sm{color:var(--muted);font-size:19px}
+.chk{display:flex;flex-direction:column}
+.chk div{display:flex;gap:16px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line);font-size:23px;font-weight:500}
+.chk div:last-child{border-bottom:0}
+.chk div::before{content:"";width:26px;height:26px;border-radius:8px;border:2px solid var(--muted);flex:none}
+
+/* 25 homework */
+.hw{display:grid;grid-template-columns:1.25fr 1fr;gap:28px;margin-top:20px}
+.hwq{display:flex;flex-direction:column}
+.hwq div{display:grid;grid-template-columns:44px 1fr;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--line);font-size:25px;line-height:1.3}
+.hwq div:last-child{border-bottom:0}
+.hwq span{font:600 24px 'Outfit',sans-serif;color:var(--muted)}
+.hw .stack{display:flex;flex-direction:column;gap:20px}
+.hw .lime{padding:30px 32px}
+.hw .lime .quote{font-size:36px}
+.hw .card p{font-size:21px;line-height:1.4}
+
+/* 26 close */
+.close{font-size:64px;line-height:1.08;font-weight:600;max-width:15em;margin-top:6px;text-wrap:balance}
+.close2{font-size:27px;line-height:1.4;color:var(--muted);margin-top:24px;max-width:30em}
+.chain{display:flex;align-items:flex-start;gap:14px;margin-top:auto}
+.chain .n{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.chain .chip{font:500 26px/1 'Outfit',sans-serif;padding:14px 26px}
+.chain .chip.on{background:var(--lime);color:var(--limeink)}
+.chain .cap{font-size:17px;color:var(--muted);padding-left:6px}
+.chain .ico{margin-top:14px;color:var(--muted)}
+
+@media (max-width:640px){
+  #bar{gap:8px;padding:6px 12px 12px}
+  #count{min-width:52px}
+  .btn{width:42px;height:42px}
+  #theme,#full{display:none}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5l10 -10"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="9"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><circle cx="12" cy="11" r="3"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></symbol>
+<symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 6v2m0 8v2"/></symbol>
+<symbol id="i-coffee" viewBox="0 0 24 24"><path d="M8 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2"/><path d="M12 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2"/><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5z"/><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555"/></symbol>
+<symbol id="i-bulb" viewBox="0 0 24 24"><path d="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7"/><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3"/><path d="M9.7 17l4.6 0"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 21v-13a3 3 0 0 1 3 -3h10a3 3 0 0 1 3 3v6a3 3 0 0 1 -3 3h-9l-4 4"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6l6 6"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></symbol>
+<symbol id="i-notes" viewBox="0 0 24 24"><path d="M13 20l7 -7"/><path d="M13 20v-6a1 1 0 0 1 1 -1h6v-7a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7"/></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/></symbol>
+<symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18"/></symbol>
+</defs>
+</svg>
+
+<div id="app">
+  <main id="stageWrap" aria-label="Slides">
+    <div id="sizer"><div id="stage">
+
+<!-- 1 TITLE -->
+<section class="slide active" aria-label="Title">
+  <div class="crumb"><span class="pill">Basic Entrepreneurship</span></div>
+  <div class="t1">
+    <div>
+      <h1>Finding &amp; Validating a Problem</h1>
+      <p class="lede">Entrepreneurs don't start with a business. They start with a problem that people actually have.</p>
+      <div class="chips">
+        <span class="chip"><svg class="ico"><use href="#i-clock"/></svg>2 hours 30 minutes</span>
+        <span class="chip"><svg class="ico"><use href="#i-users"/></svg>Adults aged 19–40</span>
+      </div>
+    </div>
+    <div class="daycard" aria-label="Day 1 of 3"><span class="a">Day</span><span class="b">1</span><span class="c">of 3</span></div>
+  </div>
+  <div class="notes">
+    <p><b>Welcome (0:00–0:15).</b> Greet the group and set the tone: this course starts with problems, not business plans. Today has a mini-lecture and three hands-on activities.</p>
+    <p>Method for the day: short talk, group work, individual reflection, practical examples. Your role is to challenge thinking, not to hand out business ideas.</p>
+    <p>Keys: arrow keys or space to move, N shows these notes, F goes fullscreen.</p>
+  </div>
+</section>
+
+<!-- 2 OUTCOME -->
+<section class="slide" aria-label="Outcome">
+  <div class="crumb"><span class="pill">Welcome</span><span class="time">0:00–0:15</span></div>
+  <h2 class="statement">By the end of today you'll have one problem worth pursuing, and a reason why.</h2>
+  <p class="lede">Not a business plan. Not an app. A problem you can explain in one sentence.</p>
+  <div class="notes">
+    <p>Say it plainly: we are not building a company today. Success is a clear problem and a reason you believe it matters.</p>
+    <p>Quick show of hands: who already has a business idea in mind? Tell them to hold on to it. By the end of today they'll test it against a real problem.</p>
+    <p>Your stance for the whole day: when someone gives an answer, don't say "good idea". Ask "Why?", "Who has this problem?", "How do you know?", "What are they doing today?", "Can you make it more specific?"</p>
+  </div>
+</section>
+
+<!-- 3 PLAN -->
+<section class="slide" aria-label="Session plan">
+  <div class="crumb"><span class="pill">Welcome</span><span class="time">0:00–0:15</span></div>
+  <h2 class="title">Today's plan</h2>
+  <p class="lede" style="font-size:21px;margin-top:10px">Bars show relative length. The lime ones are where you do the work.</p>
+  <div class="tl">
+    <div class="tlrow"><span class="tt">0:00–0:15</span><span class="tn">Welcome and icebreaker</span><span class="bar" style="--w:15"></span></div>
+    <div class="tlrow"><span class="tt">0:15–0:35</span><span class="tn">Mini-lecture</span><span class="bar" style="--w:20"></span></div>
+    <div class="tlrow"><span class="tt">0:35–1:05</span><span class="tn">Problem Safari</span><span class="bar act" style="--w:30"></span></div>
+    <div class="tlrow"><span class="tt">1:05–1:20</span><span class="tn">Break</span><span class="bar" style="--w:15"></span></div>
+    <div class="tlrow"><span class="tt">1:20–1:50</span><span class="tn">Problem Validation Canvas</span><span class="bar act" style="--w:30"></span></div>
+    <div class="tlrow"><span class="tt">1:50–2:15</span><span class="tn">Individual reflection</span><span class="bar act" style="--w:25"></span></div>
+    <div class="tlrow"><span class="tt">2:15–2:30</span><span class="tn">Share-out and closing</span><span class="bar" style="--w:15"></span></div>
+  </div>
+  <div class="notes">
+    <p>Walk through the timetable in under a minute. Point to the three lime bars: that's where most of the learning happens. The mini-lecture is deliberately short.</p>
+    <p>Keep time. If the mini-lecture runs long, skip the "Why start with a problem?" slide first.</p>
+  </div>
+</section>
+
+<!-- 4 OBJECTIVES -->
+<section class="slide" aria-label="Learning objectives">
+  <div class="crumb"><span class="pill">Welcome</span><span class="time">0:00–0:15</span></div>
+  <h2 class="title">By the end of today you can…</h2>
+  <div class="objs">
+    <div>
+      <div class="obj"><svg class="ico"><use href="#i-check"/></svg>Explain the difference between an idea and a validated problem</div>
+      <div class="obj"><svg class="ico"><use href="#i-check"/></svg>Identify at least three real problems in your community or market</div>
+      <div class="obj"><svg class="ico"><use href="#i-check"/></svg>Say who specifically experiences each problem</div>
+      <div class="obj"><svg class="ico"><use href="#i-check"/></svg>Describe how people deal with it today</div>
+    </div>
+    <div>
+      <div class="obj"><svg class="ico"><use href="#i-check"/></svg>Spot weaknesses in the existing solutions</div>
+      <div class="obj"><svg class="ico"><use href="#i-check"/></svg>Choose one problem worth investigating further</div>
+      <div class="card lime"><svg class="ico"><use href="#i-target"/></svg><span>State that problem clearly in one sentence</span></div>
+    </div>
+  </div>
+  <div class="notes">
+    <p>Don't read every line. Say: the last objective is the target. Everything else we do today builds towards one clear sentence about one real problem.</p>
+    <p>These are the Day 1 objectives from the curriculum. Return to this slide at the end for the self-check.</p>
+  </div>
+</section>
+
+<!-- 5 ICEBREAKER -->
+<section class="slide" aria-label="Icebreaker">
+  <div class="crumb"><span class="pill">Welcome</span><span class="time">0:00–0:15</span>
+    <div class="timer" data-min="5"><span class="t">05:00</span><button class="go">Start</button><button class="rs">Reset</button></div></div>
+  <h2 class="title">What frustrated you this week?</h2>
+  <p class="lede">Turn to the person next to you and take two minutes each. What took too much time, cost too much, or just didn't work?</p>
+  <div class="grid three mt">
+    <div class="card"><h3>Who was affected?</h3><p>Just you, or other people too?</p></div>
+    <div class="card"><h3>How often?</h3><p>Once, or again and again?</p></div>
+    <div class="card"><h3>What did they do about it?</h3><p>How did people cope?</p></div>
+  </div>
+  <div class="notes">
+    <p>Pairs, two minutes each, then take two or three volunteers. About five minutes in total.</p>
+    <p>If the room is quiet, use the opening questions: What frustrates you every week? What takes too much time? What do people complain about? Which service do you wish worked better?</p>
+    <p>Write three or four of their frustrations on the board. You'll come back to them during Problem Safari.</p>
+  </div>
+</section>
+
+<!-- 6 ENTREPRENEURS SOLVE PROBLEMS -->
+<section class="slide" aria-label="Entrepreneurs solve problems">
+  <div class="crumb"><span class="pill">Mini-lecture</span><span class="time">0:15–0:35</span></div>
+  <h2 class="title">Entrepreneurs solve problems</h2>
+  <div class="grid two" style="margin-top:28px">
+    <div class="card" style="padding:32px 36px">
+      <p class="def" style="color:var(--ink)"><b>Entrepreneurship</b> is the process of identifying opportunities, solving problems, creating value, and organizing resources to provide goods or services that people need or want.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <div class="card" style="display:flex;gap:18px;align-items:flex-start">
+        <svg class="ico" style="margin-top:6px"><use href="#i-x"/></svg>
+        <div><p class="sm" style="margin-bottom:4px">Not this</p><p class="quote" style="color:var(--muted)">“What business can I start?”</p></div>
+      </div>
+      <div class="card lime" style="display:flex;gap:18px;align-items:flex-start">
+        <svg class="ico" style="margin-top:6px"><use href="#i-check"/></svg>
+        <div><p class="sm" style="margin-bottom:4px;color:var(--limeink)">Ask this</p><p class="quote">“What problem exists, who experiences it, and how can it be solved better?”</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p>Read the definition once, then spend your time on the reframe. Entrepreneurship starts earlier than most people think: it begins with recognising a problem people actually experience.</p>
+    <p>An entrepreneur notices something that is difficult, expensive, slow, inconvenient, inaccessible, unreliable, frustrating or inefficient, and asks: "Can this be solved in a better way?"</p>
+    <p>Ask the room which of the two questions they have been asking themselves so far. Today is about seeing problems as potential opportunities, not about starting a company.</p>
+  </div>
+</section>
+
+<!-- 7 VAGUE TO SPECIFIC -->
+<section class="slide" aria-label="Make the problem specific">
+  <div class="crumb"><span class="pill">Mini-lecture</span><span class="time">0:15–0:35</span></div>
+  <h2 class="title">Make the problem specific</h2>
+  <div class="vs">
+    <div class="vsh"><span></span><span>Too vague</span><span>Specific enough to investigate</span></div>
+    <div class="vsr card"><b>Transportation</b>
+      <p class="weak"><svg class="ico"><use href="#i-x"/></svg>“Transportation is bad.”</p>
+      <p class="good">Workers in Waterloo who commute to Freetown struggle to find reliable transportation during peak morning hours.</p></div>
+    <div class="vsr card"><b>Education</b>
+      <p class="weak"><svg class="ico"><use href="#i-x"/></svg>“Education is a problem.”</p>
+      <p class="good">Some secondary-school students struggle with mathematics because they can't access affordable after-school tutoring.</p></div>
+    <div class="vsr card"><b>Small business</b>
+      <p class="weak"><svg class="ico"><use href="#i-x"/></svg>“Small businesses need technology.”</p>
+      <p class="good">Small retail businesses struggle to track customer debts because they rely on handwritten notebooks.</p></div>
+  </div>
+  <div class="notes">
+    <p>Read the vague statement aloud, then ask the room: Who? Where? When? Let them improve it before you reveal the specific version.</p>
+    <p>The transport example works well because everyone knows the Waterloo to Freetown commute. Point out what the specific version tells us: who, where, what, when.</p>
+    <p>Key line: a vague problem leads to a vague customer. A specific problem is something an entrepreneur can actually investigate.</p>
+  </div>
+</section>
+
+<!-- 8 PROBLEM IDEA SOLUTION -->
+<section class="slide" aria-label="Problem, idea, solution">
+  <div class="crumb"><span class="pill">Mini-lecture</span><span class="time">0:15–0:35</span></div>
+  <h2 class="title">Start at the problem, not the app</h2>
+  <p class="lede" style="font-size:22px;margin-top:10px">Example: market vendors and their regular customers.</p>
+  <div class="flow">
+    <div class="card lime"><h3>Problem</h3><p>Market vendors lose customers because they can't easily tell regulars when new stock arrives.</p></div>
+    <div class="arr"><svg class="ico"><use href="#i-arrow"/></svg></div>
+    <div class="card"><h3>Idea</h3><p>A WhatsApp notification service for market vendors.</p></div>
+    <div class="arr"><svg class="ico"><use href="#i-arrow"/></svg></div>
+    <div class="card"><h3>Solution</h3><p>A tool that keeps customer lists and automatically sends stock updates through WhatsApp.</p></div>
+    <div class="arr"><svg class="ico"><use href="#i-arrow"/></svg></div>
+    <div class="card"><h3>Business model</h3><p>How the solution earns money. Later in the course.</p></div>
+  </div>
+  <div class="chips mt">
+    <span class="chip" style="background:transparent;border:2px dashed var(--line);color:var(--muted)">When you hear “I want to build an app”, ask:</span>
+    <span class="chip">What problem will it solve?</span>
+    <span class="chip">Who has it?</span>
+    <span class="chip">How do they solve it today?</span>
+  </div>
+  <div class="notes">
+    <p>Draw the chain on the board: Problem, Idea, Solution, Business model. The mistake many new entrepreneurs make is starting at the end.</p>
+    <p>Practise the three questions out loud with the class. When someone says "I want to build an app", respond with: What problem will it solve? Who has that problem? How are they solving it today?</p>
+    <p>The curriculum names jumping straight to a solution without a clear problem as a common mistake. Keep coming back to this throughout the day.</p>
+  </div>
+</section>
+
+<!-- 9 WHY PROBLEM FIRST -->
+<section class="slide" aria-label="Why start with a problem">
+  <div class="crumb"><span class="pill">Mini-lecture</span><span class="time">0:15–0:35</span></div>
+  <h2 class="title">Why start with a problem?</h2>
+  <div class="why">
+    <div class="whyr"><b>Problems create demand</b><span>People with a genuine problem have a reason to look for a solution.</span></div>
+    <div class="whyr"><b>Problems define the customer</b><span>A specific problem points to exactly who needs the solution.</span></div>
+    <div class="whyr"><b>Problems limit wasted spending</b><span>Checking first reduces the risk of building something nobody wants.</span></div>
+    <div class="whyr"><b>Problems reveal competition</b><span>People already cope somehow. Those workarounds are your alternatives.</span></div>
+    <div class="whyr"><b>Problems lead to value</b><span>The goal isn't to create something. It's to create value.</span></div>
+  </div>
+  <div class="notes">
+    <p>Skip or shorten this slide if you are short of time.</p>
+    <p>Ask: has anyone seen a person or business spend money on something nobody wanted? Use one or two stories from the room to make "problems prevent unnecessary investment" real.</p>
+  </div>
+</section>
+
+<!-- 10 NOT EVERY PROBLEM -->
+<section class="slide" aria-label="Not every problem is a business">
+  <div class="crumb"><span class="pill">Mini-lecture</span><span class="time">0:15–0:35</span></div>
+  <h2 class="title">Not every problem is a business</h2>
+  <div class="split">
+    <div class="card bigq">
+      <p class="quote">“I don't like waking up early.”</p>
+      <p>A real problem for someone. But not automatically a viable business, so we investigate before we decide.</p>
+    </div>
+    <div>
+      <p class="sm" style="margin-bottom:4px">Investigate first</p>
+      <div class="qlist">
+        <div class="qrow"><svg class="ico"><use href="#i-users"/></svg>Who experiences the problem?</div>
+        <div class="qrow"><svg class="ico"><use href="#i-clock"/></svg>How often does it happen?</div>
+        <div class="qrow"><svg class="ico"><use href="#i-alert"/></svg>How serious is it?</div>
+        <div class="qrow"><svg class="ico"><use href="#i-pencil"/></svg>What do people do about it now?</div>
+        <div class="qrow"><svg class="ico"><use href="#i-search"/></svg>What's weak about that solution?</div>
+      </div>
+      <p class="sm" style="margin-top:14px;display:flex;gap:10px;align-items:center"><svg class="ico"><use href="#i-coin"/></svg>Later in the course: would people pay for a better solution?</p>
+    </div>
+  </div>
+  <div class="notes">
+    <p>Ask: is "I don't like waking up early" a business? Let people argue both sides, then land the point: people have thousands of problems a day, and not every one deserves a company.</p>
+    <p>The five questions are the Day 1 validation approach. Willingness to pay is a useful extension for later business-model work. It is not something participants must prove today.</p>
+  </div>
+</section>
+
+<!-- 11 THREE QUESTIONS -->
+<section class="slide" aria-label="Three validation questions">
+  <div class="crumb"><span class="pill">Mini-lecture</span><span class="time">0:15–0:35</span></div>
+  <h2 class="title">Three questions test a problem</h2>
+  <p class="lede" style="font-size:22px;margin-top:10px">These make up the Problem Validation Canvas you'll complete in a moment.</p>
+  <div class="grid q3">
+    <div class="card">
+      <div class="ib"><svg class="ico"><use href="#i-users"/></svg></div>
+      <h3>Who has this problem?</h3>
+      <p>Don't accept “young people”. Ask: which young people?</p>
+      <div class="chips"><span class="chip">Graduates aged 20–30 seeking a first formal job</span></div>
+    </div>
+    <div class="card">
+      <div class="ib"><svg class="ico"><use href="#i-pencil"/></svg></div>
+      <h3>How do they solve it today?</h3>
+      <p>People rarely do nothing. Find the workaround.</p>
+      <div class="chips"><span class="chip">Notebooks</span><span class="chip">WhatsApp</span><span class="chip">Spreadsheets</span><span class="chip">Memory</span></div>
+    </div>
+    <div class="card">
+      <div class="ib"><svg class="ico"><use href="#i-search"/></svg></div>
+      <h3>Why is that solution weak?</h3>
+      <p>Look for what makes it fall short.</p>
+      <div class="chips"><span class="chip">Slow</span><span class="chip">Expensive</span><span class="chip">Unreliable</span><span class="chip">Hard to access</span><span class="chip">Annoying</span></div>
+    </div>
+  </div>
+  <div class="notes">
+    <p>This is the heart of Day 1, so slow down.</p>
+    <p><b>Who?</b> Do not accept vague answers. "Young people" becomes "Young graduates between 20 and 30 looking for their first formal job".</p>
+    <p><b>How today?</b> The existing workaround is the competition. For customer debts it might be notebooks, phone notes, WhatsApp messages, memory or spreadsheets.</p>
+    <p><b>Why weak?</b> Is it too expensive, slow, inconvenient, unreliable, hard to access, hard to understand, time-consuming, or unavailable in some places? The curriculum asks whether the current solution is weak, slow, expensive or annoying.</p>
+  </div>
+</section>
+
+<!-- 12 LOCAL EXAMPLE -->
+<section class="slide" aria-label="Worked example: food seller">
+  <div class="crumb"><span class="pill">Mini-lecture</span><span class="time">0:15–0:35</span></div>
+  <h2 class="title">Example: the market food seller</h2>
+  <p class="lede" style="font-size:24px">Customers often arrive to find the food they wanted is finished. They'd like to know what's available before they travel.</p>
+  <div class="grid ans">
+    <div class="card"><p class="k">Who has the problem?</p><p class="v">Customers who regularly buy prepared food.</p></div>
+    <div class="card"><p class="k">How do they solve it today?</p><p class="v">They travel to the market or call the seller.</p></div>
+    <div class="card"><p class="k">Why is that weak?</p><p class="v">They can waste time travelling, only to find it's sold out.</p></div>
+  </div>
+  <div class="chips mt">
+    <span class="chip"><svg class="ico"><use href="#i-bulb"/></svg>A possible idea, still unvalidated: a simple WhatsApp ordering and availability service</span>
+  </div>
+  <div class="notes">
+    <p>Walk through the three answers slowly, one at a time. Ask the room what else customers might do today that isn't on the slide.</p>
+    <p>Point out the idea chip at the bottom: we have an idea, but we haven't validated it yet. First we understand the problem.</p>
+    <p>If the class has other local examples (market delivery, WhatsApp coordination for spare parts), invite them in.</p>
+  </div>
+</section>
+
+<!-- 13 SAFARI -->
+<section class="slide" aria-label="Activity 1: Problem Safari">
+  <div class="crumb"><span class="pill">Activity 1</span><span class="time">0:35–1:05</span>
+    <div class="timer" data-min="30"><span class="t">30:00</span><button class="go">Start</button><button class="rs">Reset</button></div></div>
+  <h2 class="title">Problem Safari: find 10 problems</h2>
+  <p class="lede">Forget about starting a business. Your only job is to observe.</p>
+  <div class="grid info">
+    <div class="card"><svg class="ico"><use href="#i-users"/></svg><div><b>Groups of 3–4</b><span>Work together and share what you see.</span></div></div>
+    <div class="card"><svg class="ico"><use href="#i-target"/></svg><div><b>Goal: 10 problems</b><span>Write each one down as you go.</span></div></div>
+    <div class="card"><svg class="ico"><use href="#i-pin"/></svg><div><b>Look around you</b><span>Family, community, work and school.</span></div></div>
+  </div>
+  <div class="card lime rule mt">
+    <svg class="ico"><use href="#i-alert"/></svg>
+    <p>No solutions yet. If you say “we need an app for this”, answer: what problem would the app solve?</p>
+  </div>
+  <div class="notes">
+    <p>Say: "For the next 30 minutes, forget about starting a business. Your job is simply to observe problems." Start the timer.</p>
+    <p>Walk around. The one rule you enforce: nobody jumps to solutions. When a group says "we need an app", ask what problem the app would solve.</p>
+    <p>Each group should end with about 10 problems. Refer back to the frustrations from the icebreaker if a group is stuck.</p>
+  </div>
+</section>
+
+<!-- 14 PROMPTS -->
+<section class="slide" aria-label="Where to look for problems">
+  <div class="crumb"><span class="pill">Activity 1</span><span class="time">0:35–1:05</span></div>
+  <h2 class="title">Ask these as you look around</h2>
+  <div class="grid pg">
+    <div class="card">What do people complain about?</div>
+    <div class="card">What wastes people's time?</div>
+    <div class="card">What costs people unnecessary money?</div>
+    <div class="card">What is difficult to access?</div>
+    <div class="card">What is unreliable?</div>
+    <div class="card">What do people repeat manually, again and again?</div>
+    <div class="card">What causes frustration?</div>
+    <div class="card">Which services are hard to get?</div>
+    <div class="card">What do people wish were easier?</div>
+  </div>
+  <div class="notes">
+    <p>Read two or three prompts aloud and leave this slide up while groups work.</p>
+    <p>If a group has fewer than 10, point them to a different setting: home, the neighbourhood, a workplace, a school.</p>
+  </div>
+</section>
+
+<!-- 15 LADDER -->
+<section class="slide" aria-label="Keep asking until it is specific">
+  <div class="crumb"><span class="pill">Activity 1</span><span class="time">0:35–1:05</span></div>
+  <h2 class="title">Keep asking until it's specific</h2>
+  <div class="ladder">
+    <div class="lad">
+      <div class="ls"><span class="a">“There are no jobs.”</span></div>
+      <div class="ls"><span class="q">Who is affected?</span><span class="a">“Young people.”</span></div>
+      <div class="ls"><span class="q">Which young people?</span><span class="a">“University graduates.”</span></div>
+      <div class="ls"><span class="q">What are they struggling with?</span><span class="a">“Finding jobs.”</span></div>
+      <div class="ls last"><span class="q">What makes that difficult?</span><span class="a">“Many don't know how to prepare good CVs or do well in interviews.”</span></div>
+    </div>
+    <div class="card lime">
+      <p class="sm">Where you end up</p>
+      <p class="quote">Young graduates in the community struggle to prepare competitive CVs and perform well in job interviews.</p>
+    </div>
+  </div>
+  <div class="notes">
+    <p>Demonstrate with a volunteer playing the participant while you play the tutor. Don't reject "there are no jobs". Ask questions until it becomes specific.</p>
+    <p>This is the specificity skill you'll use all day. Use it with groups during Problem Safari and again in the Canvas activity.</p>
+  </div>
+</section>
+
+<!-- 16 EXAMPLES -->
+<section class="slide" aria-label="Examples to spark discussion">
+  <div class="crumb"><span class="pill">Activity 1</span><span class="time">0:35–1:05</span></div>
+  <h2 class="title">Examples to spark discussion</h2>
+  <div class="grid ex">
+    <div class="card"><h3>Transportation</h3><p>Workers struggle to find reliable transportation during peak hours.</p></div>
+    <div class="card"><h3>Education</h3><p>Students struggle to access affordable tutoring outside school hours.</p></div>
+    <div class="card"><h3>Agriculture</h3><p>Farmers struggle to get reliable information about current market prices.</p></div>
+    <div class="card"><h3>Small business</h3><p>Small shops struggle to track customer debts accurately.</p></div>
+    <div class="card"><h3>Healthcare</h3><p>Patients may have trouble getting timely information about available services.</p></div>
+    <div class="card"><h3>Food</h3><p>Workers find it hard to get affordable meals during working hours.</p></div>
+    <div class="card"><h3>Digital services</h3><p>Some small businesses struggle to keep accurate digital records.</p></div>
+    <div class="card lime"><svg class="ico"><use href="#i-search"/></svg><p>These are examples, not validated opportunities. Ask: how do we know?</p></div>
+  </div>
+  <div class="notes">
+    <p>Use only to unstick groups or to spark discussion at the debrief. Don't present these as business ideas to adopt.</p>
+    <p>Remind them: these are examples for discussion. None of them has been validated yet.</p>
+  </div>
+</section>
+
+<!-- 17 BREAK -->
+<section class="slide" aria-label="Break">
+  <div class="crumb"><span class="pill">Break</span><span class="time">1:05–1:20</span></div>
+  <div class="brk">
+    <div class="ib"><svg class="ico"><use href="#i-coffee"/></svg></div>
+    <div class="timer big" data-min="15"><span class="t">15:00</span><div class="btns"><button class="go">Start</button><button class="rs">Reset</button></div></div>
+    <p class="lede">Back at 1:20. Think about which three problems on your list feel most real.</p>
+  </div>
+  <div class="notes">
+    <p>15-minute break. Ask groups to keep their lists of 10 problems. In the next activity each group picks its top three.</p>
+  </div>
+</section>
+
+<!-- 18 CANVAS -->
+<section class="slide" aria-label="Activity 2: Problem Validation Canvas">
+  <div class="crumb"><span class="pill">Activity 2</span><span class="time">1:20–1:50</span>
+    <div class="timer" data-min="30"><span class="t">30:00</span><button class="go">Start</button><button class="rs">Reset</button></div></div>
+  <h2 class="title">Problem Validation Canvas</h2>
+  <p class="lede" style="font-size:23px;margin-top:10px">Choose your group's top three problems. Complete this canvas for each one.</p>
+  <div class="cvs">
+    <div class="cvr"><div class="card"><svg class="ico"><use href="#i-target"/></svg>The problem</div><div class="blank"></div></div>
+    <div class="cvr"><div class="card"><svg class="ico"><use href="#i-users"/></svg>Who has this problem?</div><div class="blank"></div></div>
+    <div class="cvr"><div class="card"><svg class="ico"><use href="#i-pencil"/></svg>How do they solve it today?</div><div class="blank"></div></div>
+    <div class="cvr"><div class="card"><svg class="ico"><use href="#i-search"/></svg>Why is that solution weak?</div><div class="blank"></div></div>
+  </div>
+  <div class="notes">
+    <p>This is the central activity of Day 1. Each group picks its top three problems from the ten, then completes the three questions for each. Participants can copy the canvas onto paper.</p>
+    <p>Walk around and challenge, don't approve. Useful questions: How do you know this is actually a problem? Have you experienced it yourself? Have you seen someone else experience it? What evidence do you have? Is this a problem or merely an inconvenience? Are you describing the problem, or already proposing the solution?</p>
+    <p>Start the timer for 30 minutes.</p>
+  </div>
+</section>
+
+<!-- 19 COMPLETED -->
+<section class="slide" aria-label="Completed canvas example">
+  <div class="crumb"><span class="pill">Activity 2</span><span class="time">1:20–1:50</span></div>
+  <h2 class="title">Completed canvas: customer debts</h2>
+  <div class="done">
+    <div class="rows">
+      <div class="card"><p class="k">Who has the problem?</p><p class="v">Small shop owners who regularly let customers buy on credit.</p></div>
+      <div class="card"><p class="k">How do they solve it today?</p><p class="v">Notebooks, memory, phone notes and other informal records.</p></div>
+      <div class="card"><p class="k">Why is that weak?</p><p class="v">Records get disorganized or lost, are hard to search, make it unclear who owes what, and can cause disagreements.</p></div>
+    </div>
+    <div class="card lime">
+      <div><p class="k">Problem</p><p class="v">Small retailers struggle to track customer debts.</p></div>
+      <div><p class="k">Possible opportunity</p><p class="v">A simpler way to record debts.</p></div>
+      <p class="v" style="font-size:21px;margin-top:auto">Notice we haven't decided it's an app. First we understand the problem.</p>
+    </div>
+  </div>
+  <div class="notes">
+    <p>Show this as the model answer. Point out how specific each answer is.</p>
+    <p>Stress the last line: even with a possible opportunity in sight, we still haven't chosen a solution. That discipline is the lesson.</p>
+  </div>
+</section>
+
+<!-- 20 5W -->
+<section class="slide" aria-label="The 5W test">
+  <div class="crumb"><span class="pill">Activity 2</span><span class="time">1:20–1:50</span></div>
+  <h2 class="title">The 5W test for specificity</h2>
+  <div class="grid w5">
+    <div class="card"><h3>Who</h3><p>Who experiences it?</p></div>
+    <div class="card"><h3>What</h3><p>What exactly is happening?</p></div>
+    <div class="card"><h3>Where</h3><p>Where does it happen?</p></div>
+    <div class="card"><h3>When</h3><p>When does it happen?</p></div>
+    <div class="card"><h3>Why</h3><p>Why does the current situation matter?</p></div>
+  </div>
+  <div class="cmp">
+    <div class="card weak"><svg class="ico"><use href="#i-x"/></svg>“Students have problems.”</div>
+    <div class="card strong"><svg class="ico"><use href="#i-check"/></svg>“Secondary-school students in my community struggle to get affordable mathematics tutoring after school.”</div>
+  </div>
+  <div class="notes">
+    <p>Use the 5W test as a quick check for the statements groups wrote. Put a weak statement on the board and have the class apply the five questions to it.</p>
+    <p>Not every statement needs all five answered precisely, but if Who and What are fuzzy, it isn't specific enough yet.</p>
+  </div>
+</section>
+
+<!-- 21 TRAPS -->
+<section class="slide" aria-label="Five traps">
+  <div class="crumb"><span class="pill">Activity 2</span><span class="time">1:20–1:50</span></div>
+  <h2 class="title">Five traps to catch in yourself</h2>
+  <div class="trh"><span>You might say</span><span></span><span>Ask instead</span></div>
+  <div class="traps">
+    <div class="trap card"><span class="s">“I want to build an app.”</span><svg class="ico arr"><use href="#i-arrow"/></svg><span class="k">What problem would it solve?</span></div>
+    <div class="trap card"><span class="s">“I want to solve unemployment.”</span><svg class="ico arr"><use href="#i-arrow"/></svg><span class="k">Which people? Which part of it?</span></div>
+    <div class="trap card"><span class="s">“People need this.”</span><svg class="ico arr"><use href="#i-arrow"/></svg><span class="k">How do I know?</span></div>
+    <div class="trap card"><span class="s">“Nobody solves this yet.”</span><svg class="ico arr"><use href="#i-arrow"/></svg><span class="k">What do people do today?</span></div>
+    <div class="trap card"><span class="s">“I just like this problem.”</span><svg class="ico arr"><use href="#i-arrow"/></svg><span class="k">Interest is a start. Where's my evidence?</span></div>
+  </div>
+  <div class="notes">
+    <p>Go through quickly. For each one, ask the room whether they've caught themselves doing it today. Keep it friendly.</p>
+    <p>Your response to each mistake: (1) "That's potentially a solution. Let's identify the problem first." (2) "Which people? What specific part?" (3) "How do you know?" (4) "A problem may already have several competing solutions." (5) "Personal interest can be useful, but the problem still needs investigating."</p>
+    <p>Reminder of your role: you are not telling anyone which business to start. You are helping them discover and investigate problems themselves.</p>
+  </div>
+</section>
+
+<!-- 22 REFLECTION -->
+<section class="slide" aria-label="Activity 3: Individual reflection">
+  <div class="crumb"><span class="pill">Activity 3</span><span class="time">1:50–2:15</span>
+    <div class="timer" data-min="25"><span class="t">25:00</span><button class="go">Start</button><button class="rs">Reset</button></div></div>
+  <h2 class="title">Choose your problem</h2>
+  <p class="lede" style="font-size:22px;margin-top:10px">Pick the one problem you'll pursue for the rest of the course. Even in a group, you should be able to explain it on your own by pitch day.</p>
+  <div class="wr">
+    <div class="wrr"><b>Who has this problem?</b><i></i></div>
+    <div class="wrr"><b>What exactly is the problem?</b><i></i></div>
+    <div class="wrr"><b>How do they solve it today?</b><i></i></div>
+    <div class="wrr"><b>Why is that solution inadequate?</b><i></i></div>
+    <div class="wrr"><b>Why is this worth investigating?</b><i></i></div>
+  </div>
+  <div class="notes">
+    <p>Quiet, individual writing for 25 minutes. Each participant selects one problem to pursue for the remainder of the course.</p>
+    <p>Participants who continue as a group still need to be able to explain the problem individually by pitch day.</p>
+    <p>Circulate and read over shoulders. Ask the Challenge questions where answers are thin: How do you know? What evidence do you have?</p>
+  </div>
+</section>
+
+<!-- 23 FORMULA -->
+<section class="slide" aria-label="One-sentence problem statement">
+  <div class="crumb"><span class="pill">Activity 3</span><span class="time">1:50–2:15</span></div>
+  <h2 class="title">Say it in one sentence</h2>
+  <p class="formula"><em>Who</em> struggles with <em>problem</em> because <em>current solution</em> is <em>specific weakness</em>.</p>
+  <div class="grid exs mt">
+    <div class="card"><span class="k">Example</span><p>Young graduates in my community struggle to prepare competitive CVs because they often lack access to affordable professional CV guidance.</p></div>
+    <div class="card"><span class="k">Example</span><p>Small retailers struggle to track customer debts because handwritten records are difficult to organize and update.</p></div>
+  </div>
+  <div class="notes">
+    <p>Teach the formula, then give participants two minutes to write their own sentence at the bottom of their worksheet.</p>
+    <p>On Day 1, assess mainly on the clarity of the problem statement: specific versus vague.</p>
+  </div>
+</section>
+
+<!-- 24 SHARE OUT -->
+<section class="slide" aria-label="Share-out and self-check">
+  <div class="crumb"><span class="pill">Share-out and closing</span><span class="time">2:15–2:30</span></div>
+  <h2 class="title">Share it, then check yourself</h2>
+  <div class="grid sh">
+    <div class="card">
+      <h3>Share-out</h3>
+      <p>Read your sentence aloud.</p>
+      <p>Listeners ask: Who exactly? How do you know? What do they do today?</p>
+    </div>
+    <div class="card">
+      <h3>Can I…</h3>
+      <div class="chk">
+        <div>name the problem?</div>
+        <div>say who experiences it?</div>
+        <div>describe the existing solution?</div>
+        <div>explain why it falls short?</div>
+        <div>say it in one sentence?</div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p>Invite four or five volunteers to read their sentence. Challenge each one gently: How do you know? Who exactly?</p>
+    <p>For your own success check, look at each participant and ask: Can they identify the problem? Who experiences it? The existing solution? Why it is inadequate? Can they state it in one sentence? Answer yes or no for each.</p>
+  </div>
+</section>
+
+<!-- 25 HOMEWORK -->
+<section class="slide" aria-label="Homework">
+  <div class="crumb"><span class="pill">Share-out and closing</span><span class="time">2:15–2:30</span></div>
+  <h2 class="title">Before Day 2: talk to two people</h2>
+  <p class="lede" style="font-size:22px;margin-top:10px">Find at least two real people who experience your problem. Ask them:</p>
+  <div class="hw">
+    <div class="hwq">
+      <div><span>1</span>What exactly is the problem?</div>
+      <div><span>2</span>How often does it happen?</div>
+      <div><span>3</span>How do you handle it today?</div>
+      <div><span>4</span>What do you dislike about that?</div>
+      <div><span>5</span>What would you want instead?</div>
+    </div>
+    <div class="stack">
+      <div class="card lime"><p class="quote">Don't sell your idea. Your job is to listen.</p></div>
+      <div class="card"><p>Write down how they currently deal with the problem. Ask what they actually do, not whether they'd like your idea.</p></div>
+    </div>
+  </div>
+  <div class="notes">
+    <p>The assignment: speak with at least two real people who experience the chosen problem, and record how they currently deal with it.</p>
+    <p>Tell them: "Don't try to sell your idea during the interview. Your job is to listen." The purpose is to learn whether the problem exists from the perspective of the people who live it.</p>
+    <p>Practical tip: ask about the last time it happened and what they did, rather than hypothetical questions like "would you use an app for this?"</p>
+  </div>
+</section>
+
+<!-- 26 CLOSE -->
+<section class="slide" aria-label="Closing">
+  <div class="crumb"><span class="pill">Share-out and closing</span><span class="time">2:15–2:30</span></div>
+  <h2 class="close">Don't fall in love with your solution before you understand the problem.</h2>
+  <p class="close2">A business idea is only a hypothesis until you have evidence that the problem actually exists.</p>
+  <div class="chain">
+    <div class="n"><span class="chip on">Problem</span><span class="cap">You are here</span></div>
+    <svg class="ico"><use href="#i-arrow"/></svg>
+    <div class="n"><span class="chip">Evidence</span><span class="cap">Next</span></div>
+    <svg class="ico"><use href="#i-arrow"/></svg>
+    <div class="n"><span class="chip">Customer</span></div>
+    <svg class="ico"><use href="#i-arrow"/></svg>
+    <div class="n"><span class="chip">Business model</span></div>
+  </div>
+  <div class="notes">
+    <p>Close with both messages. Then restate the goal: you now know who has a problem, what it is, how they cope today, and why that may not be good enough.</p>
+    <p>That gives every participant something real to investigate for Day 2. Remind them of the homework and thank the group.</p>
+  </div>
+</section>
+
+    </div></div>
+  </main>
+
+  <aside id="notes" aria-label="Tutor notes" aria-live="polite">
+    <h2>Tutor notes</h2>
+    <div id="notesBody"></div>
+  </aside>
+
+  <nav id="bar" aria-label="Slide controls">
+    <button class="btn" id="prev" aria-label="Previous slide"><svg class="ico"><use href="#i-left"/></svg></button>
+    <button class="btn" id="next" aria-label="Next slide"><svg class="ico"><use href="#i-right"/></svg></button>
+    <span id="count" aria-live="off">1 / 26</span>
+    <div id="track" role="progressbar" aria-label="Progress" aria-valuemin="1" aria-valuemax="26" aria-valuenow="1"><div id="fill"></div></div>
+    <button class="btn" id="notesBtn" aria-label="Toggle tutor notes" aria-pressed="false" title="Tutor notes (N)"><svg class="ico"><use href="#i-notes"/></svg></button>
+    <button class="btn" id="theme" aria-label="Switch light or dark" title="Light or dark"><svg class="ico"><use href="#i-contrast"/></svg></button>
+    <button class="btn" id="full" aria-label="Fullscreen" title="Fullscreen (F)"><svg class="ico"><use href="#i-expand"/></svg></button>
+  </nav>
+</div>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var wrap=document.getElementById('stageWrap'),sizer=document.getElementById('sizer'),stage=document.getElementById('stage');
+  var prev=document.getElementById('prev'),next=document.getElementById('next');
+  var count=document.getElementById('count'),fill=document.getElementById('fill'),track=document.getElementById('track');
+  var notesBody=document.getElementById('notesBody'),notesBtn=document.getElementById('notesBtn');
+  var root=document.documentElement,cur=0;
+
+  function fit(){
+    var r=wrap.getBoundingClientRect();
+    var cs=getComputedStyle(wrap);
+    var w=r.width-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    var h=r.height-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    var s=Math.max(0.1,Math.min(w/1280,h/720));
+    sizer.style.width=(1280*s)+'px';
+    sizer.style.height=(720*s)+'px';
+    stage.style.transform='scale('+s+')';
+  }
+
+  function show(n){
+    n=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach(function(s,i){s.classList.toggle('active',i===n)});
+    cur=n;
+    count.textContent=(n+1)+' / '+slides.length;
+    fill.style.width=((n+1)/slides.length*100)+'%';
+    track.setAttribute('aria-valuenow',n+1);
+    var nt=slides[n].querySelector('.notes');
+    notesBody.innerHTML=nt?nt.innerHTML:'';
+    prev.disabled=n===0;next.disabled=n===slides.length-1;
+    try{history.replaceState(null,'','#'+(n+1))}catch(e){}
+  }
+
+  function toggleNotes(){
+    var open=document.body.classList.toggle('notes-open');
+    notesBtn.setAttribute('aria-pressed',open?'true':'false');
+    setTimeout(fit,280);
+  }
+
+  prev.addEventListener('click',function(){show(cur-1)});
+  next.addEventListener('click',function(){show(cur+1)});
+  notesBtn.addEventListener('click',toggleNotes);
+
+  document.getElementById('full').addEventListener('click',function(){
+    try{
+      if(document.fullscreenElement){document.exitFullscreen()}
+      else if(root.requestFullscreen){var p=root.requestFullscreen();if(p&&p.catch)p.catch(function(){})}
+    }catch(e){}
+  });
+
+  function systemDark(){try{return window.matchMedia('(prefers-color-scheme: dark)').matches}catch(e){return false}}
+  document.getElementById('theme').addEventListener('click',function(){
+    var current=root.getAttribute('data-theme');
+    var dark=current?current==='dark':systemDark();
+    var nextTheme=dark?'light':'dark';
+    root.setAttribute('data-theme',nextTheme);
+    try{localStorage.setItem('day1-theme',nextTheme)}catch(e){}
+  });
+  try{var saved=localStorage.getItem('day1-theme');if(saved==='light'||saved==='dark')root.setAttribute('data-theme',saved)}catch(e){}
+
+  document.addEventListener('keydown',function(e){
+    if(e.metaKey||e.ctrlKey||e.altKey)return;
+    var onBtn=e.target&&e.target.closest&&e.target.closest('button');
+    var k=e.key;
+    if((k===' '||k==='Enter')&&onBtn)return;
+    if(k==='ArrowRight'||k==='PageDown'||k===' '){e.preventDefault();show(cur+1)}
+    else if(k==='ArrowLeft'||k==='PageUp'){e.preventDefault();show(cur-1)}
+    else if(k==='Home'){show(0)}
+    else if(k==='End'){show(slides.length-1)}
+    else if(k==='n'||k==='N'){toggleNotes()}
+    else if(k==='f'||k==='F'){document.getElementById('full').click()}
+  });
+
+  var sx=null;
+  wrap.addEventListener('touchstart',function(e){sx=e.touches[0].clientX},{passive:true});
+  wrap.addEventListener('touchend',function(e){
+    if(sx===null)return;
+    var dx=e.changedTouches[0].clientX-sx;sx=null;
+    if(Math.abs(dx)>50){show(cur+(dx<0?1:-1))}
+  },{passive:true});
+
+  /* timers */
+  [].slice.call(document.querySelectorAll('.timer')).forEach(function(t){
+    var total=parseInt(t.getAttribute('data-min'),10)*60,left=total,id=null;
+    var out=t.querySelector('.t'),go=t.querySelector('.go'),rs=t.querySelector('.rs');
+    function fmt(s){var m=Math.floor(s/60),x=s%60;return (m<10?'0':'')+m+':'+(x<10?'0':'')+x}
+    function render(){out.textContent=fmt(left);t.classList.toggle('done',left===0)}
+    function stop(){if(id){clearInterval(id);id=null}go.textContent=left===total||left===0?'Start':'Resume'}
+    go.addEventListener('click',function(){
+      if(id){stop();go.textContent='Resume';return}
+      if(left===0)left=total;
+      go.textContent='Pause';
+      id=setInterval(function(){left=Math.max(0,left-1);render();if(left===0){stop()}},1000);
+    });
+    rs.addEventListener('click',function(){if(id){clearInterval(id);id=null}left=total;render();go.textContent='Start'});
+  });
+
+  window.addEventListener('resize',fit);
+  if(window.ResizeObserver){new ResizeObserver(fit).observe(wrap)}
+  fit();
+  var start=0;
+  try{var h=parseInt((location.hash||'').replace('#',''),10);if(h>=1&&h<=slides.length)start=h-1}catch(e){}
+  show(start);
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fit)}
+})();
+</script>
+</body>
+</html>
